@@ -16,7 +16,11 @@ updates:
     schedule:
       interval: "daily"
       time: "08:00"
-      timezone: "EST"
+      timezone: "America/New_York"
     registries:
       - maven-google
       - maven-central
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

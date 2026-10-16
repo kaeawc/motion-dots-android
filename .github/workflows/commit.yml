@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: "Run ShellCheck"
         shell: "bash"
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: "Run ktfmt"
         shell: "bash"
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - uses: ./.github/actions/gradle-task-run
         with:
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - uses: ./.github/actions/gradle-task-run
         with:
@@ -64,7 +64,7 @@ jobs:
           gradle-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: "Store Android Lint HTML Report"
-        uses: actions/upload-artifact@v4.4.0
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: android-lint-report
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Git Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - uses: ./.github/actions/gradle-task-run
         with:
@@ -84,7 +84,7 @@ jobs:
           gradle-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: "Store APK"
-        uses: actions/upload-artifact@v4.4.0
+        uses: actions/upload-artifact@v7
         with:
           name: apk
           path: app/build/outputs/apk/debug/app-debug.apk

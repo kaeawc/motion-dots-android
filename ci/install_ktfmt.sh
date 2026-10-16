@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-KTFMT_VERSION="0.62" # Keep CI aligned with the Homebrew-installed formatter used by local hooks
+KTFMT_VERSION="0.65" # Keep CI aligned with the Homebrew-installed formatter used by local hooks
 
 # Check if ktfmt is not installed
 if ! command -v ktfmt &>/dev/null; then

@@ -1,14 +1,21 @@
 [versions]
 build-android-compileSdk = "37"
 build-android-minSdk = "27"
+# Keep targetSdk at 36 on purpose. At targetSdk 37 Android 17 requires the ACCESS_LOCAL_NETWORK
+# runtime permission for the app's LAN WebSocket and NSD discovery. Do not bump without adding it.
 build-android-targetSdk = "36"
-build-android-agp = "9.3.2"
-build-kotlin = "2.4.20"
-build-kotlin-language = "2.3"
+# Toolchain compatibility: Kotlin Gradle Plugin 2.4.21 is documented as fully tested only up to
+# Gradle 9.7.0 / AGP 9.3.1. Gradle 9.8.1 + AGP 9.4.0 + Kotlin 2.4.21 is the chosen "latest" set
+# and may print KGP compatibility warnings. Conservative fallback set: Gradle 9.7.1, AGP 9.3.3,
+# Kotlin 2.4.21 (Gradle version lives in gradle/wrapper/gradle-wrapper.properties).
+build-android-agp = "9.4.0"
+build-kotlin = "2.4.21"
+build-kotlin-language = "2.4"
 build-kotlin-coroutines = "1.11.0"
-build-java-asm = "9.10.1"
+build-java-asm = "9.11"
+# JDK 21 (an LTS) is deliberate; JDK 25 with Kotlin 2.4 jvmTarget is unverified.
 build-java-target = "21"
-androidx-core = "1.19.0"
+androidx-core = "1.19.1"
 androidx-activity-compose = "1.13.0"
 androidx-compose-bom = "2026.09.00"
 androidx-lifecycle = "2.11.0"

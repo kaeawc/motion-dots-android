@@ -11,6 +11,14 @@ The wire format is documented in [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 
 Requires an Android SDK (compileSdk 37; AGP picks its default build-tools) and a JDK 21 toolchain
 (Gradle resolves the toolchain; `gradle/gradle-daemon-jvm.properties` pins the daemon JVM).
+The build uses Gradle 9.8.1, AGP 9.4.0 and Kotlin 2.4.21 (language version 2.4); formatting uses
+ktfmt 0.65 (`ci/install_ktfmt.sh`, `ci/apply_ktfmt.sh`). Kotlin 2.4.21 is only documented as fully
+tested up to Gradle 9.7.0 / AGP 9.3.1, so KGP compatibility warnings are possible; the
+conservative fallback is Gradle 9.7.1, AGP 9.3.3, Kotlin 2.4.21.
+
+`targetSdk` is intentionally 36, not 37: at targetSdk 37 Android 17 requires the
+`ACCESS_LOCAL_NETWORK` runtime permission for the app's LAN WebSocket and NSD discovery. Do not
+raise it without adding that permission flow.
 
 ```sh
 ./gradlew assembleDebug
