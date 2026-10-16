@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
+import java.net.Inet6Address
 import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,10 @@ class MacDiscovery(context: Context) {
 
     private val _macs = MutableStateFlow<List<DiscoveredMac>>(emptyList())
     val macs: StateFlow<List<DiscoveredMac>> = _macs.asStateFlow()
+
+    private val _problem = MutableStateFlow<String?>(null)
+    /** One-line discovery problem for the UI (for example no usable IPv4 address). */
+    val problem: StateFlow<String?> = _problem.asStateFlow()
 
     private var running = false
     private var multicastLock: WifiManager.MulticastLock? = null
@@ -57,6 +62,7 @@ class MacDiscovery(context: Context) {
     private fun startOnMain() {
         if (running) return
         running = true
+        _problem.value = null
         try {
             multicastLock =
                 wifi?.createMulticastLock("motiondots-mdns")?.apply {
@@ -94,6 +100,7 @@ class MacDiscovery(context: Context) {
         resolveQueue.clear()
         resolveRetries.clear()
         resolving = false
+        _problem.value = null
         found.clear()
         _macs.value = emptyList()
         try {
@@ -187,12 +194,7 @@ class MacDiscovery(context: Context) {
                 override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                     main.post {
                         resolving = false
-                        val name = serviceInfo.serviceName
-                        val tries = (resolveRetries[name] ?: 0) + 1
-                        resolveRetries[name] = tries
-                        if (running && tries <= 3) {
-                            main.postDelayed({ if (running) enqueueResolve(serviceInfo) }, 500L)
-                        }
+                        retryResolve(serviceInfo, ipv6LinkLocalOnly = false)
                         pumpResolve()
                     }
                 }
@@ -200,9 +202,17 @@ class MacDiscovery(context: Context) {
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
                     main.post {
                         resolving = false
-                        resolveRetries.remove(serviceInfo.serviceName)
-                        val host = serviceInfo.host?.let { AddressPicker.pick(listOf(it)) }
-                        accept(serviceInfo.serviceName, host, serviceInfo.port)
+                        val address = serviceInfo.host
+                        if (address is Inet6Address && address.isLinkLocalAddress) {
+                            // Pre API 34 resolve returns a single address. fe80:: needs a scope id
+                            // that a ws:// URL cannot carry, so it is unusable: resolve again, in
+                            // case the next answer carries the IPv4 record.
+                            retryResolve(serviceInfo, ipv6LinkLocalOnly = true)
+                        } else {
+                            resolveRetries.remove(serviceInfo.serviceName)
+                            val host = address?.let { AddressPicker.pick(listOf(it)) }
+                            accept(serviceInfo.serviceName, host, serviceInfo.port)
+                        }
                         pumpResolve()
                     }
                 }
@@ -213,6 +223,18 @@ class MacDiscovery(context: Context) {
             Log.w(TAG, "resolveService failed", e)
             resolving = false
             pumpResolve()
+        }
+    }
+
+    /** Re-queues a failed or unusable resolve, at most [MAX_RESOLVE_RETRIES] times per service. */
+    private fun retryResolve(serviceInfo: NsdServiceInfo, ipv6LinkLocalOnly: Boolean) {
+        val name = serviceInfo.serviceName
+        val tries = (resolveRetries[name] ?: 0) + 1
+        resolveRetries[name] = tries
+        if (running && tries <= MAX_RESOLVE_RETRIES) {
+            main.postDelayed({ if (running) enqueueResolve(serviceInfo) }, 500L)
+        } else if (running && ipv6LinkLocalOnly) {
+            _problem.value = "Couldn't get an IPv4 address for $name, enter host:port manually"
         }
     }
 
@@ -242,5 +264,6 @@ class MacDiscovery(context: Context) {
     companion object {
         const val SERVICE_TYPE = "_motiondots._tcp."
         private const val TAG = "MacDiscovery"
+        private const val MAX_RESOLVE_RETRIES = 3
     }
 }

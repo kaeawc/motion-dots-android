@@ -8,9 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -21,8 +24,11 @@ import dev.jasonpearson.motiondots.net.DiscoveredMac
 import dev.jasonpearson.motiondots.net.MacConnection
 import dev.jasonpearson.motiondots.net.MacDiscovery
 import dev.jasonpearson.motiondots.sensors.MotionSensorSource
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -33,15 +39,33 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Foreground service (dataSync) that owns the connection, the sensors and discovery so streaming
  * continues with the screen off. Control with [start] / [stop]; observe [StreamingController].
+ *
+ * Threading: every mutable field below is confined to the main thread. [scope] runs on
+ * `Dispatchers.Main.immediate`, and anything that can fire from another thread (the coroutine
+ * exception handler, the sensor callback is not one of them) hops to main through [onMain].
+ *
+ * Battery: sensors and the wake lock are only held while the connection is Connected. While the
+ * Mac is unreachable they are released, and after [RETRY_BUDGET_LABEL] of failed retries the
+ * service stops itself.
  */
 class StreamingService : Service() {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Main thread only from here down.
+    private var scope: CoroutineScope? = null
     private var connection: MacConnection? = null
     private var sensors: MotionSensorSource? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var running = false
+    private var engaged = false
     private var discoveryOn = false
+    private var discoverJob: Job? = null
+    private var refreshJob: Job? = null
+    private var followWindowJob: Job? = null
+
+    // Sensor thread only.
     private var lastDebugMs = 0L
+
     private lateinit var prefs: MacPrefs
     private val discovery by lazy { MacDiscovery(this) }
 
@@ -57,20 +81,21 @@ class StreamingService : Service() {
             shutdown()
             return START_NOT_STICKY
         }
-        ServiceCompat.startForeground(
-            this,
-            NOTIFICATION_ID,
-            buildNotification(StreamingController.connection.value),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-        )
+        if (!enterForeground()) return START_NOT_STICKY
         if (!running) beginStreaming()
-        if (intent != null) resolveTarget(intent)
+        if (running && intent != null) resolveTarget(intent)
         return START_NOT_STICKY
     }
 
-    /** Android 15+: dataSync foreground services get a time budget. Stop cleanly when it ends. */
+    /**
+     * Android 15+: dataSync foreground services get a time budget (about 6 hours per day). Stop
+     * cleanly when it ends; the user can start again by opening the app and tapping Start.
+     */
     override fun onTimeout(startId: Int, fgsType: Int) {
-        StreamingController.setMessage("Android stopped the background stream (time limit).")
+        StreamingController.setMessage(
+            "Android's time limit for background data sync was reached, so streaming stopped. " +
+                "Open the app and tap Start to continue."
+        )
         shutdown()
     }
 
@@ -79,49 +104,112 @@ class StreamingService : Service() {
         super.onDestroy()
     }
 
+    /** Returns false (after stopping the service with a UI message) if Android refuses. */
+    private fun enterForeground(): Boolean {
+        val notification = buildNotification(StreamingController.connection.value)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // The service type constant is API 29; below that the 2-argument form is used.
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            return true
+        } catch (e: SecurityException) {
+            Log.w(TAG, "startForeground refused", e)
+            StreamingController.setMessage(
+                "Android refused to start the streaming service. Check the app's permissions."
+            )
+        } catch (e: IllegalStateException) {
+            // Includes ForegroundServiceStartNotAllowedException (API 31+, an IllegalStateException)
+            // and ForegroundServiceTypeNotAllowedException.
+            Log.w(TAG, "startForeground not allowed", e)
+            StreamingController.setMessage(
+                "Android didn't allow streaming to start from the background. " +
+                    "Open the app and tap Start."
+            )
+        }
+        shutdown()
+        return false
+    }
+
     private fun beginStreaming() {
+        StreamingController.setMessage(null)
+        val src = MotionSensorSource(this)
+        if (!src.availability.usable) {
+            failAndStop("This phone has no accelerometer.")
+            return
+        }
         running = true
         StreamingController.setStreaming(true)
-        StreamingController.setMessage(null)
-        acquireWakeLock()
+
+        val handler = CoroutineExceptionHandler { _, t ->
+            if (t is CancellationException) return@CoroutineExceptionHandler
+            Log.e(TAG, "Uncaught exception in service scope", t)
+            val what = t.message ?: t.javaClass.simpleName
+            failAndStop("Streaming stopped after an unexpected error: $what")
+        }
+        // A fresh job per run so a previous run's cancellation can never leak into this one.
+        val s = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + handler)
+        scope = s
 
         val conn =
             MacConnection(
-                scope = scope,
+                scope = s,
                 deviceName = Build.MODEL ?: "Android",
                 monotonicNanos = SystemClock::elapsedRealtimeNanos,
             )
         connection = conn
-        val src = MotionSensorSource(this)
         sensors = src
 
-        val started =
-            src.start(conn.rateHz.value) { t, a, g ->
-                conn.sendMotion(t, a, g)
-                publishDebug(a)
-            }
-        if (!started) StreamingController.setMessage("This phone has no accelerometer.")
-
-        scope.launch {
-            conn.state.collect { s ->
-                StreamingController.setConnection(s)
-                notifyState(s)
-                when (s) {
-                    is ConnectionState.Reconnecting -> if (s.attempt >= 2) setDiscovery(true)
-                    is ConnectionState.Connected -> setDiscovery(false)
-                    else -> Unit
+        s.launch {
+            conn.state.collect { st ->
+                StreamingController.setConnection(st)
+                notifyState(st)
+                when (st) {
+                    is ConnectionState.Connected -> {
+                        followWindowJob?.cancel()
+                        setDiscovery(false)
+                        engage(conn, src)
+                    }
+                    is ConnectionState.Reconnecting -> {
+                        // Not connected: stop sampling and release the wake lock.
+                        disengage()
+                        if (st.attempt == 2) openFollowWindow()
+                    }
+                    is ConnectionState.Connecting -> disengage()
+                    ConnectionState.Idle -> Unit
                 }
             }
         }
-        scope.launch {
+        s.launch {
             conn.rateHz.collect {
                 StreamingController.setRequestedHz(it)
                 src.setRate(it)
             }
         }
-        scope.launch { conn.dropped.collect { StreamingController.setDropped(it) } }
-        scope.launch { src.achievedHz.collect { StreamingController.setAchievedHz(it) } }
-        scope.launch {
+        s.launch { conn.dropped.collect { StreamingController.setDropped(it) } }
+        s.launch { src.achievedHz.collect { StreamingController.setAchievedHz(it) } }
+        s.launch {
+            conn.gaveUp.collect { gaveUp ->
+                if (gaveUp) {
+                    failAndStop(
+                        "Couldn't reach your Mac for $RETRY_BUDGET_LABEL. Tap Start to try again."
+                    )
+                }
+            }
+        }
+        s.launch {
+            discovery.problem.collect { problem ->
+                if (problem != null) StreamingController.setMessage(problem)
+            }
+        }
+        s.launch {
             // Mac may have moved (DHCP): follow it by name while we are failing to reconnect.
             discovery.macs.collect { list ->
                 val target = StreamingController.target.value ?: return@collect
@@ -134,12 +222,55 @@ class StreamingService : Service() {
                 if (moved != null) connectTo(moved)
             }
         }
-        scope.launch {
-            while (true) {
-                delay(WAKELOCK_REFRESH_MS)
-                acquireWakeLock()
+    }
+
+    /** Connected: hold the wake lock and sample the sensors. */
+    private fun engage(conn: MacConnection, src: MotionSensorSource) {
+        if (engaged || !running) return
+        engaged = true
+        acquireWakeLock()
+        val started =
+            src.start(conn.rateHz.value) { t, a, g ->
+                conn.sendMotion(t, a, g)
+                publishDebug(a)
             }
+        if (!started) {
+            failAndStop("This phone has no accelerometer.")
+            return
         }
+        refreshJob?.cancel()
+        refreshJob =
+            scope?.launch {
+                while (true) {
+                    delay(WAKELOCK_REFRESH_MS)
+                    acquireWakeLock()
+                }
+            }
+    }
+
+    /** Not connected: unregister the sensors and release the wake lock. */
+    private fun disengage() {
+        if (!engaged) return
+        engaged = false
+        refreshJob?.cancel()
+        refreshJob = null
+        sensors?.stop()
+        releaseWakeLock()
+        StreamingController.setAchievedHz(0f)
+    }
+
+    /**
+     * Back-off lookup: at the 2nd reconnect attempt run NSD once for a short window so a Mac that
+     * moved can be followed by name. Beyond that discovery stays off (multicast lock and radio).
+     */
+    private fun openFollowWindow() {
+        setDiscovery(true)
+        followWindowJob?.cancel()
+        followWindowJob =
+            scope?.launch {
+                delay(FOLLOW_WINDOW_MS)
+                if (discoverJob?.isActive != true) setDiscovery(false)
+            }
     }
 
     private fun resolveTarget(intent: Intent) {
@@ -155,7 +286,8 @@ class StreamingService : Service() {
             connectTo(last)
             return
         }
-        scope.launch { discoverSingle() }
+        if (discoverJob?.isActive == true) return // dedupe concurrent lookups
+        discoverJob = scope?.launch { discoverSingle() }
     }
 
     private suspend fun discoverSingle() {
@@ -169,15 +301,18 @@ class StreamingService : Service() {
         val list = discovery.macs.value
         if (list.size == 1) {
             connectTo(list[0])
+            setDiscovery(false) // found it; only the back-off follow window turns it on again
         } else {
             failAndStop("Found ${list.size} Macs. Pick one from the list.")
         }
     }
 
-    private fun failAndStop(message: String) {
-        StreamingController.setMessage(message)
-        shutdown()
-    }
+    /** Safe from any thread. */
+    private fun failAndStop(message: String) =
+        onMain {
+            StreamingController.setMessage(message)
+            shutdownOnMain()
+        }
 
     private fun connectTo(mac: DiscoveredMac) {
         StreamingController.setTarget(mac)
@@ -207,35 +342,57 @@ class StreamingService : Service() {
                         it.setReferenceCounted(false)
                         wakeLock = it
                     }
-        // Timed acquire so a leaked lock cannot outlive us; refreshed by the loop in scope.
+        // Timed acquire so a leaked lock cannot outlive us; refreshed by refreshJob.
         lock.acquire(WAKELOCK_TIMEOUT_MS)
     }
 
-    private fun shutdown() {
+    private fun releaseWakeLock() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+    }
+
+    /** Safe from any thread. */
+    private fun shutdown() = onMain { shutdownOnMain() }
+
+    private fun shutdownOnMain() {
         cleanup()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
+    private fun onMain(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post(block)
+    }
+
+    /** Idempotent. Main thread. */
     private fun cleanup() {
+        val wasRunning = running
+        running = false // first, so notifyState() from late collector emissions is a no-op
         connection?.disconnect()
         connection = null
+        disengage()
         sensors?.stop()
         sensors = null
         if (discoveryOn) {
             discoveryOn = false
             discovery.stop()
         }
-        wakeLock?.let { if (it.isHeld) it.release() }
-        wakeLock = null
-        scope.cancel()
-        running = false
-        StreamingController.resetRuntime()
+        releaseWakeLock()
+        scope?.cancel()
+        scope = null
+        discoverJob = null
+        refreshJob = null
+        followWindowJob = null
+        engaged = false
+        if (wasRunning) StreamingController.resetRuntime()
+        // Last, so nothing above can re-post it.
+        getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
     }
 
     private fun notifyState(state: ConnectionState) {
+        if (!running) return
         getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildNotification(state))
+            ?.notify(NOTIFICATION_ID, buildNotification(state))
     }
 
     private fun buildNotification(state: ConnectionState): Notification {
@@ -285,6 +442,9 @@ class StreamingService : Service() {
         private const val WAKELOCK_TIMEOUT_MS = 60L * 60_000L
         private const val WAKELOCK_REFRESH_MS = 30L * 60_000L
         private const val DISCOVERY_TIMEOUT_MS = 15_000L
+        private const val FOLLOW_WINDOW_MS = 15_000L
+        private const val TAG = "StreamingService"
+        private const val RETRY_BUDGET_LABEL = "5 minutes"
 
         /** Start streaming to an explicit Mac. */
         fun start(context: Context, mac: DiscoveredMac) {

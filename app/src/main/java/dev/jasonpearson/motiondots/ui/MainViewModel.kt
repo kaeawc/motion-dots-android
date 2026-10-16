@@ -16,6 +16,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val macs: StateFlow<List<DiscoveredMac>> = discovery.macs
 
+    /** Discovery problem to show next to the Mac list (for example no IPv4 address). */
+    val discoveryProblem: StateFlow<String?> = discovery.problem
+
     private val _lastMac = MutableStateFlow(prefs.load())
     val lastMac: StateFlow<DiscoveredMac?> = _lastMac.asStateFlow()
 

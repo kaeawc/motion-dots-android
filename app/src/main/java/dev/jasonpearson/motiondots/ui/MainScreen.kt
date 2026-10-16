@@ -65,7 +65,9 @@ fun MainScreen(viewModel: MainViewModel) {
     val achievedHz by StreamingController.achievedHz.collectAsStateWithLifecycle()
     val dropped by StreamingController.dropped.collectAsStateWithLifecycle()
     val accel by StreamingController.linearAccel.collectAsStateWithLifecycle()
-    val message by StreamingController.message.collectAsStateWithLifecycle()
+    val serviceMessage by StreamingController.message.collectAsStateWithLifecycle()
+    val discoveryProblem by viewModel.discoveryProblem.collectAsStateWithLifecycle()
+    val message = serviceMessage ?: discoveryProblem
     val macs by viewModel.macs.collectAsStateWithLifecycle()
     val lastMac by viewModel.lastMac.collectAsStateWithLifecycle()
 

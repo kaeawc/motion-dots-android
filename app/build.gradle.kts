@@ -7,7 +7,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.serialization)
 }
 
 val javaTarget = libs.versions.build.java.target.get().toInt()
@@ -35,7 +34,6 @@ tasks.withType<KotlinCompile>().configureEach {
 android {
     namespace = "dev.jasonpearson.motiondots"
     compileSdk = libs.versions.build.android.compileSdk.get().toInt()
-    buildToolsVersion = libs.versions.build.android.buildTools.get()
 
     defaultConfig {
         applicationId = "dev.jasonpearson.motiondots"
@@ -132,7 +130,6 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.okhttp.mockwebserver3)
 }
 

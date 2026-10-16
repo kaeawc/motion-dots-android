@@ -5,9 +5,10 @@ package dev.jasonpearson.motiondots.sensors
  * still average out to the requested rate. Timestamps are nanoseconds on any monotonic clock.
  */
 class RateLimiter(rateHz: Int) {
-    private var intervalNs = intervalFor(rateHz)
-    private var next = 0L
-    private var started = false
+    // setRate() is called from the service thread while accept() runs on the sensor thread.
+    @Volatile private var intervalNs = intervalFor(rateHz)
+    @Volatile private var next = 0L
+    @Volatile private var started = false
 
     fun setRate(rateHz: Int) {
         intervalNs = intervalFor(rateHz)
@@ -20,13 +21,14 @@ class RateLimiter(rateHz: Int) {
 
     fun accept(tNs: Long): Boolean {
         if (!started) {
-            started = true
             next = tNs + intervalNs
+            started = true
             return true
         }
-        val tolerance = intervalNs / 20
+        val interval = intervalNs
+        val tolerance = interval / 20
         if (tNs < next - tolerance) return false
-        next = if (tNs - next > intervalNs) tNs + intervalNs else next + intervalNs
+        next = if (tNs - next > interval) tNs + interval else next + interval
         return true
     }
 

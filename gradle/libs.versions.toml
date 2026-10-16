@@ -1,5 +1,4 @@
 [versions]
-build-android-buildTools = "36.0.0"
 build-android-compileSdk = "37"
 build-android-minSdk = "27"
 build-android-targetSdk = "36"
@@ -20,7 +19,6 @@ test-junit = "4.13.2"
 [plugins]
 android-application = { id = "com.android.application", version.ref = "build-android-agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "build-kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "build-kotlin" }
 
 [libraries]
 # Gradle plugins as libraries, used only by the root buildscript classpath to pin KGP/AGP.
@@ -34,8 +32,6 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
-# Legacy okhttp3.mockwebserver.MockWebServer API.
-okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 # OkHttp 5 API (package mockwebserver3).
 okhttp-mockwebserver3 = { module = "com.squareup.okhttp3:mockwebserver3", version.ref = "okhttp" }
 

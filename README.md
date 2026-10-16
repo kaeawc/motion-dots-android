@@ -9,7 +9,7 @@ The wire format is documented in [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 
 ## Build
 
-Requires an Android SDK (compileSdk 37, build-tools 36.0.0) and a JDK 21 toolchain
+Requires an Android SDK (compileSdk 37; AGP picks its default build-tools) and a JDK 21 toolchain
 (Gradle resolves the toolchain; `gradle/gradle-daemon-jvm.properties` pins the daemon JVM).
 
 ```sh
@@ -55,6 +55,35 @@ Android may throttle sensors and networking when the screen is off or the app is
 background. If the stream stalls, exclude MotionDots from battery optimization:
 Settings > Apps > MotionDots > Battery > Unrestricted. The foreground service and a partial wake
 lock keep streaming alive while you ride, but vendor battery managers can still be aggressive.
+
+## Connection behavior
+
+- **Handshake deadline**: if the Mac accepts the TCP connection but does not finish the WebSocket
+  upgrade within 8 seconds, the attempt is dropped and retried.
+- **Liveness**: any frame from the Mac counts as proof of life. If nothing arrives for 6 seconds
+  while pings are going out, the app reconnects. See the Liveness section of
+  [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
+- **Backoff**: retries wait about 1, 2, 4, 8, then 10 seconds, each with up to 20% jitter. The
+  backoff resets only after a connection was welcomed and stayed open for 10 seconds, or after its
+  first pong, so a Mac that accepts and immediately drops does not cause a tight retry loop.
+- **Retry budget**: if the app has not been connected for 5 minutes (counted from the last time
+  it was connected, or from pressing Start), the service stops itself and the app shows "Couldn't
+  reach your Mac for 5 minutes". Tap Start to try again.
+- **Dropped samples**: motion samples are dropped (newest first) when more than about 400 bytes
+  are still waiting to be written to the socket. The "Dropped" counter on the main screen counts
+  them.
+
+## Battery
+
+The accelerometer sensors and the partial wake lock are held only while the phone is connected to
+the Mac. While the Mac is unreachable (reconnecting) both are released, so a Mac that went to
+sleep or left the network does not drain the battery, and everything is re-acquired as soon as the
+connection is back. Bonjour discovery is not left running during back-off: it runs once for a
+short window at the second reconnect attempt, only to follow a Mac that changed its address by
+name.
+
+On Android 15 and later the system limits how long a data-sync foreground service may run per
+day. When the limit is reached streaming stops with a message; open the app and tap Start again.
 
 ## Project layout
 

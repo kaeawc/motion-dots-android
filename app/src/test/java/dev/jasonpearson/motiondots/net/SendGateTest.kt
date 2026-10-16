@@ -7,35 +7,43 @@ import org.junit.Test
 
 class SendGateTest {
     @Test
-    fun allowsFiveInFlightThenDrops() {
-        val gate = SendGate()
-        repeat(5) { assertTrue(gate.tryAcquire(100)) }
-        assertFalse(gate.tryAcquire(100))
-        assertFalse(gate.tryAcquire(100))
+    fun defaultThresholdIsAboutFourHundredBytes() {
+        assertTrue(SendGate().maxQueueBytes in 380L..420L)
+    }
+
+    @Test
+    fun allowsUpToThreeFramesQueuedThenTailDrops() {
+        val gate = SendGate(approxFrameBytes = 100)
+        assertEquals(300L, gate.maxQueueBytes)
+        assertTrue(gate.tryAcquire(0))
+        assertTrue(gate.tryAcquire(300))
+        assertFalse(gate.tryAcquire(301))
+        assertFalse(gate.tryAcquire(10_000))
         assertEquals(2L, gate.dropped)
     }
 
     @Test
-    fun emptyQueueClearsInFlight() {
-        val gate = SendGate()
-        repeat(5) { gate.tryAcquire(100) }
+    fun recoversAsSoonAsTheQueueDrains() {
+        val gate = SendGate(approxFrameBytes = 100)
+        assertFalse(gate.tryAcquire(500))
         assertTrue(gate.tryAcquire(0))
-        assertEquals(0L, gate.dropped)
-    }
-
-    @Test
-    fun dropsWhenQueueExceeds8Kb() {
-        val gate = SendGate()
-        assertFalse(gate.tryAcquire(8 * 1024L + 1))
-        assertTrue(gate.tryAcquire(8 * 1024L))
         assertEquals(1L, gate.dropped)
     }
 
     @Test
-    fun releaseFreesSlot() {
+    fun rejectedSendCountsAsDrop() {
         val gate = SendGate()
-        repeat(5) { gate.tryAcquire(10) }
-        gate.release()
-        assertTrue(gate.tryAcquire(10))
+        gate.onSendRejected()
+        gate.onSendRejected()
+        assertEquals(2L, gate.dropped)
+    }
+
+    @Test
+    fun resetClearsDropped() {
+        val gate = SendGate()
+        gate.tryAcquire(1_000_000)
+        gate.onSendRejected()
+        gate.resetDropped()
+        assertEquals(0L, gate.dropped)
     }
 }
