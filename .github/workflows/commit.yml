@@ -1,0 +1,90 @@
+name: "Commit"
+
+on:
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - main
+
+permissions:
+  checks: write
+  pull-requests: write
+
+jobs:
+  validate-shell-scripts:
+    name: "Validate Shell Scripts"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Run ShellCheck"
+        shell: "bash"
+        run: |
+          ci/validate_shell_scripts.sh
+
+  ktfmt:
+    name: "ktfmt"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Run ktfmt"
+        shell: "bash"
+        run: |
+          INSTALL_KTFMT_WHEN_MISSING=true ONLY_TOUCHED_FILES=false ci/validate_ktfmt.sh
+
+  unit-tests:
+    name: "Unit Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/gradle-task-run
+        with:
+          gradle-tasks: "testDebugUnitTest"
+          reuse-configuration-cache: true
+          gradle-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+  android-lint:
+    name: "Android Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/gradle-task-run
+        with:
+          gradle-tasks: ":app:lintDebug"
+          reuse-configuration-cache: true
+          gradle-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: "Store Android Lint HTML Report"
+        uses: actions/upload-artifact@v4.4.0
+        if: always()
+        with:
+          name: android-lint-report
+          path: app/build/reports/lint-results-debug.html
+
+  build-apk:
+    name: "Build APK"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/gradle-task-run
+        with:
+          gradle-tasks: "assembleDebug"
+          reuse-configuration-cache: true
+          gradle-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: "Store APK"
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: apk
+          path: app/build/outputs/apk/debug/app-debug.apk

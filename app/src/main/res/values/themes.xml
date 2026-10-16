@@ -1,0 +1,4 @@
+<resources>
+    <!-- AppCompat is not a dependency, so use the framework theme. Compose draws all UI. -->
+    <style name="Theme.MotionDots" parent="android:Theme.Material.NoActionBar" />
+</resources>

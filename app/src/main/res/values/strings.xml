@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MotionDots</string>
+    <string name="notification_channel_stream">Motion streaming</string>
+    <string name="notification_channel_stream_description">Shown while motion data is being streamed to your Mac</string>
+</resources>
