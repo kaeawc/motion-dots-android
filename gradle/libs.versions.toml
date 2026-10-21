@@ -12,7 +12,7 @@ build-android-agp = "9.4.0"
 build-kotlin = "2.4.21"
 build-kotlin-language = "2.4"
 build-kotlin-coroutines = "1.11.0"
-build-java-asm = "9.11"
+build-java-asm = "9.11.1"
 # JDK 21 (an LTS) is deliberate; JDK 25 with Kotlin 2.4 jvmTarget is unverified.
 build-java-target = "21"
 androidx-core = "1.19.1"
