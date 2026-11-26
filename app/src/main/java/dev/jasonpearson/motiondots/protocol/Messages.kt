@@ -25,15 +25,14 @@ object Messages {
 
     fun isAdoptableRate(hz: Int?): Boolean = hz != null && hz in MIN_RATE_HZ..MAX_RATE_HZ
 
-    fun hello(name: String, rateHz: Int): String =
-        buildJsonObject {
-                put("type", "hello")
-                put("v", PROTOCOL_VERSION)
-                put("platform", "android")
-                put("name", name)
-                put("rateHz", rateHz)
-            }
-            .toString()
+    fun hello(name: String, rateHz: Int): String = buildJsonObject {
+        put("type", "hello")
+        put("v", PROTOCOL_VERSION)
+        put("platform", "android")
+        put("name", name)
+        put("rateHz", rateHz)
+    }
+        .toString()
 
     fun ping(t: Double): String {
         val sb = StringBuilder(40)

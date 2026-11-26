@@ -59,10 +59,10 @@ class MacConnectionTest {
             if (closeAfterGreeting) webSocket.close(1000, "test")
             if (chatterMs > 0) {
                 Thread {
-                        while (!stopped && webSocket.send("""{"type":"config","rateHz":50}""")) {
-                            Thread.sleep(chatterMs)
-                        }
+                    while (!stopped && webSocket.send("""{"type":"config","rateHz":50}""")) {
+                        Thread.sleep(chatterMs)
                     }
+                }
                     .apply { isDaemon = true }
                     .start()
             }
@@ -111,15 +111,15 @@ class MacConnectionTest {
 
         init {
             Thread {
-                    try {
-                        while (true) {
-                            open.add(socket.accept())
-                            accepted.incrementAndGet()
-                        }
-                    } catch (e: Exception) {
-                        // closed
+                try {
+                    while (true) {
+                        open.add(socket.accept())
+                        accepted.incrementAndGet()
                     }
+                } catch (e: Exception) {
+                    // closed
                 }
+            }
                 .apply { isDaemon = true }
                 .start()
         }
@@ -210,8 +210,8 @@ class MacConnectionTest {
                 listOf(
                     """{"type":"welcome","v":1,"host":"TestHost","rateHz":90}""",
                     """{"type":"config","rateHz":25,"unknown":true}""",
-                )
-            )
+                ),
+            ),
         )
         server.start()
         val conn = connection()
@@ -353,7 +353,7 @@ class MacConnectionTest {
     fun quickWelcomedDropDoesNotResetBackoff() {
         repeat(3) {
             accept(
-                FakeMac(listOf(welcome), answerPings = false, closeAfterGreeting = true)
+                FakeMac(listOf(welcome), answerPings = false, closeAfterGreeting = true),
             )
         }
         server.start()

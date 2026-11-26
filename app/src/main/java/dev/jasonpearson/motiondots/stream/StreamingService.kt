@@ -44,9 +44,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * `Dispatchers.Main.immediate`, and anything that can fire from another thread (the coroutine
  * exception handler, the sensor callback is not one of them) hops to main through [onMain].
  *
- * Battery: sensors and the wake lock are only held while the connection is Connected. While the
- * Mac is unreachable they are released, and after [RETRY_BUDGET_LABEL] of failed retries the
- * service stops itself.
+ * Battery: sensors and the wake lock are only held while the connection is Connected. While the Mac
+ * is unreachable they are released, and after [RETRY_BUDGET_LABEL] of failed retries the service
+ * stops itself.
  */
 class StreamingService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -94,7 +94,7 @@ class StreamingService : Service() {
     override fun onTimeout(startId: Int, fgsType: Int) {
         StreamingController.setMessage(
             "Android's time limit for background data sync was reached, so streaming stopped. " +
-                "Open the app and tap Start to continue."
+                "Open the app and tap Start to continue.",
         )
         shutdown()
     }
@@ -123,15 +123,16 @@ class StreamingService : Service() {
         } catch (e: SecurityException) {
             Log.w(TAG, "startForeground refused", e)
             StreamingController.setMessage(
-                "Android refused to start the streaming service. Check the app's permissions."
+                "Android refused to start the streaming service. Check the app's permissions.",
             )
         } catch (e: IllegalStateException) {
-            // Includes ForegroundServiceStartNotAllowedException (API 31+, an IllegalStateException)
+            // Includes ForegroundServiceStartNotAllowedException (API 31+, an
+            // IllegalStateException)
             // and ForegroundServiceTypeNotAllowedException.
             Log.w(TAG, "startForeground not allowed", e)
             StreamingController.setMessage(
                 "Android didn't allow streaming to start from the background. " +
-                    "Open the app and tap Start."
+                    "Open the app and tap Start.",
             )
         }
         shutdown()
@@ -199,7 +200,7 @@ class StreamingService : Service() {
             conn.gaveUp.collect { gaveUp ->
                 if (gaveUp) {
                     failAndStop(
-                        "Couldn't reach your Mac for $RETRY_BUDGET_LABEL. Tap Start to try again."
+                        "Couldn't reach your Mac for $RETRY_BUDGET_LABEL. Tap Start to try again.",
                     )
                 }
             }
@@ -239,13 +240,12 @@ class StreamingService : Service() {
             return
         }
         refreshJob?.cancel()
-        refreshJob =
-            scope?.launch {
-                while (true) {
-                    delay(WAKELOCK_REFRESH_MS)
-                    acquireWakeLock()
-                }
+        refreshJob = scope?.launch {
+            while (true) {
+                delay(WAKELOCK_REFRESH_MS)
+                acquireWakeLock()
             }
+        }
     }
 
     /** Not connected: unregister the sensors and release the wake lock. */
@@ -266,11 +266,10 @@ class StreamingService : Service() {
     private fun openFollowWindow() {
         setDiscovery(true)
         followWindowJob?.cancel()
-        followWindowJob =
-            scope?.launch {
-                delay(FOLLOW_WINDOW_MS)
-                if (discoverJob?.isActive != true) setDiscovery(false)
-            }
+        followWindowJob = scope?.launch {
+            delay(FOLLOW_WINDOW_MS)
+            if (discoverJob?.isActive != true) setDiscovery(false)
+        }
     }
 
     private fun resolveTarget(intent: Intent) {
@@ -292,7 +291,8 @@ class StreamingService : Service() {
 
     private suspend fun discoverSingle() {
         setDiscovery(true)
-        val any = withTimeoutOrNull(DISCOVERY_TIMEOUT_MS) { discovery.macs.first { it.isNotEmpty() } }
+        val any =
+            withTimeoutOrNull(DISCOVERY_TIMEOUT_MS) { discovery.macs.first { it.isNotEmpty() } }
         if (any == null) {
             failAndStop("No Mac found. Is MotionDots running on your Mac? Try entering host:port.")
             return
@@ -308,11 +308,10 @@ class StreamingService : Service() {
     }
 
     /** Safe from any thread. */
-    private fun failAndStop(message: String) =
-        onMain {
-            StreamingController.setMessage(message)
-            shutdownOnMain()
-        }
+    private fun failAndStop(message: String) = onMain {
+        StreamingController.setMessage(message)
+        shutdownOnMain()
+    }
 
     private fun connectTo(mac: DiscoveredMac) {
         StreamingController.setTarget(mac)
@@ -468,7 +467,7 @@ class StreamingService : Service() {
 
         fun stop(context: Context) {
             context.startService(
-                Intent(context, StreamingService::class.java).setAction(ACTION_STOP)
+                Intent(context, StreamingService::class.java).setAction(ACTION_STOP),
             )
         }
     }

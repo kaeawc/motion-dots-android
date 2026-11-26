@@ -18,11 +18,11 @@ import kotlinx.coroutines.flow.asStateFlow
 data class DiscoveredMac(val name: String, val host: String, val port: Int)
 
 /**
- * Bonjour/mDNS discovery of `_motiondots._tcp.`. All internal state is confined to the main
- * thread; [start] and [stop] may be called from any thread.
+ * Bonjour/mDNS discovery of `_motiondots._tcp.`. All internal state is confined to the main thread;
+ * [start] and [stop] may be called from any thread.
  *
- * API 34+: `registerServiceInfoCallback` (concurrent, tracks address changes).
- * Older: deprecated `resolveService(info, listener)`, one at a time via [resolveQueue].
+ * API 34+: `registerServiceInfoCallback` (concurrent, tracks address changes). Older: deprecated
+ * `resolveService(info, listener)`, one at a time via [resolveQueue].
  */
 class MacDiscovery(context: Context) {
     private val appContext = context.applicationContext

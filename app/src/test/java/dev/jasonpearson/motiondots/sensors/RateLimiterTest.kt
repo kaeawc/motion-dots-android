@@ -18,8 +18,7 @@ class RateLimiterTest {
         return accepted
     }
 
-    @Test
-    fun firstSampleAlwaysPasses() = assertTrue(RateLimiter(50).accept(123L))
+    @Test fun firstSampleAlwaysPasses() = assertTrue(RateLimiter(50).accept(123L))
 
     @Test
     fun throttlesFasterHardware() {

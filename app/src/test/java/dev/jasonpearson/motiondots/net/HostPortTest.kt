@@ -15,7 +15,18 @@ class HostPortTest {
 
     @Test
     fun rejectsInvalid() {
-        for (s in listOf("", "host", "host:", ":80", "host:0", "host:70000", "a:b:80", "[::1]", "ho st:80")) {
+        for (s in
+            listOf(
+                "",
+                "host",
+                "host:",
+                ":80",
+                "host:0",
+                "host:70000",
+                "a:b:80",
+                "[::1]",
+                "ho st:80",
+            )) {
             assertNull(s, HostPort.parse(s))
         }
     }

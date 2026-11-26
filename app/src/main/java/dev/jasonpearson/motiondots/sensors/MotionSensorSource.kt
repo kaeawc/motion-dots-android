@@ -22,7 +22,8 @@ class MotionSensorSource(context: Context) {
             get() = linear || accelerometer
     }
 
-    private val sm = context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val sm =
+        context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val linear = sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
     private val gravitySensor = sm.getDefaultSensor(Sensor.TYPE_GRAVITY)
     private val accel = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)

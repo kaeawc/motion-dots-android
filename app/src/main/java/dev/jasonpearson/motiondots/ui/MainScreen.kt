@@ -88,8 +88,10 @@ fun MainScreen(viewModel: MainViewModel) {
         StreamingController.setMessage(null)
         val needs =
             Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                    PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) != PackageManager.PERMISSION_GRANTED
         if (needs) {
             pendingStart = action
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -124,8 +126,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     if (streaming) {
                         StreamingService.stop(context)
                     } else {
-                        val explicit =
-                            target ?: lastMac ?: macs.singleOrNull()
+                        val explicit = target ?: lastMac ?: macs.singleOrNull()
                         startWithPermission {
                             if (explicit != null) StreamingService.start(context, explicit)
                             else StreamingService.startAuto(context)
@@ -151,8 +152,8 @@ fun MainScreen(viewModel: MainViewModel) {
             Card(
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Macs on this network", style = MaterialTheme.typography.titleMedium)
@@ -185,8 +186,8 @@ fun MainScreen(viewModel: MainViewModel) {
             Card(
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Manual connection", style = MaterialTheme.typography.titleMedium)
@@ -243,7 +244,7 @@ private fun StatusCard(
         }
     Card(
         colors =
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(statusText, style = MaterialTheme.typography.titleLarge)
@@ -270,7 +271,7 @@ private fun StatusCard(
 private fun AccelCard(accel: FloatArray) {
     Card(
         colors =
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Linear acceleration (m/s²)", style = MaterialTheme.typography.titleMedium)
@@ -315,9 +316,9 @@ private fun BatteryRow(context: Context) {
             onClick = {
                 context.startActivity(
                     Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
-            }
+            },
         ) {
             Text("Open")
         }

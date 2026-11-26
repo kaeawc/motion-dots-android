@@ -6,10 +6,10 @@ import java.util.concurrent.atomic.AtomicLong
  * Backpressure for droppable motion frames; hello and ping bypass it (must deliver).
  *
  * OkHttp's `WebSocket.queueSize()` is the number of bytes enqueued and not yet written to the
- * socket. There is a single droppable frame type, so the policy is a plain tail drop: a new
- * sample is shed while more than [maxQueueBytes] (3 frames) are already waiting. The newest
- * sample is the one lost, which keeps the Mac's picture of the past intact and lets the queue
- * drain. A `send()` that OkHttp rejects (socket closing, queue full) is also a drop.
+ * socket. There is a single droppable frame type, so the policy is a plain tail drop: a new sample
+ * is shed while more than [maxQueueBytes] (3 frames) are already waiting. The newest sample is the
+ * one lost, which keeps the Mac's picture of the past intact and lets the queue drain. A `send()`
+ * that OkHttp rejects (socket closing, queue full) is also a drop.
  */
 class SendGate(private val approxFrameBytes: Long = 135L) {
     /** Queue depth above which a new sample is dropped (about 400 bytes). */
