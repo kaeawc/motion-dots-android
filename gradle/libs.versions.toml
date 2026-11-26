@@ -8,7 +8,7 @@ build-android-targetSdk = "36"
 # Gradle 9.7.0 / AGP 9.3.1. Gradle 9.8.1 + AGP 9.4.0 + Kotlin 2.4.21 is the chosen "latest" set
 # and may print KGP compatibility warnings. Conservative fallback set: Gradle 9.7.1, AGP 9.3.3,
 # Kotlin 2.4.21 (Gradle version lives in gradle/wrapper/gradle-wrapper.properties).
-build-android-agp = "9.4.0"
+build-android-agp = "9.4.1"
 build-kotlin = "2.4.21"
 build-kotlin-language = "2.4"
 build-kotlin-coroutines = "1.11.0"
