@@ -43,13 +43,13 @@ sealed interface ConnectionState {
  * [Backoff]. Motion frames pass through [SendGate] and are dropped under load.
  *
  * Robustness rules:
- * - A session that has not completed the WebSocket upgrade within [handshakeTimeoutMs] is torn
- *   down (OkHttp reads the upgrade response with readTimeout(0), so it would hang forever).
+ * - A session that has not completed the WebSocket upgrade within [handshakeTimeoutMs] is torn down
+ *   (OkHttp reads the upgrade response with readTimeout(0), so it would hang forever).
  * - Every [Session] has a `dead` flag and `live()`; every OkHttp callback bails out first thing if
  *   its session is no longer the live one. State writes are additionally guarded by a generation
  *   counter bumped by [connect] and [disconnect].
- * - The backoff is reset only for a healthy session: welcomed and open for [healthyAfterMs], or
- *   its first pong.
+ * - The backoff is reset only for a healthy session: welcomed and open for [healthyAfterMs], or its
+ *   first pong.
  * - If [retryBudgetMs] passes without a welcomed session, the loop stops and [gaveUp] turns true.
  *
  * No android.* imports: runs on the JVM for tests. Everything runs inside [scope].
@@ -198,8 +198,8 @@ class MacConnection(
     }
 
     /**
-     * Returns when the session ended: socket closed or failed, handshake deadline passed, no
-     * frame for [pongTimeoutMs], or the session was superseded.
+     * Returns when the session ended: socket closed or failed, handshake deadline passed, no frame
+     * for [pongTimeoutMs], or the session was superseded.
      */
     private suspend fun supervise(session: Session) {
         while (true) {
@@ -264,8 +264,8 @@ class MacConnection(
         }
 
         /**
-         * Idempotent end of the session: marks it dead (all later callbacks are ignored), wakes
-         * the supervisor, and closes the socket. An established socket is closed with 1000 and
+         * Idempotent end of the session: marks it dead (all later callbacks are ignored), wakes the
+         * supervisor, and closes the socket. An established socket is closed with 1000 and
          * force-cancelled after [closeGraceMs] if the peer's close echo has not arrived; one that
          * never finished the upgrade is cancelled at once.
          */
@@ -360,8 +360,8 @@ class MacConnection(
 
         /**
          * No read timeout and no protocol-level ping: liveness is the app-level ping/pong. The
-         * upgrade response is also read under readTimeout(0), which is why [MacConnection]
-         * enforces its own handshake deadline.
+         * upgrade response is also read under readTimeout(0), which is why [MacConnection] enforces
+         * its own handshake deadline.
          */
         fun defaultClient(): OkHttpClient =
             OkHttpClient.Builder()

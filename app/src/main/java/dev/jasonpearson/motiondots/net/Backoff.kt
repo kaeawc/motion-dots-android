@@ -30,8 +30,7 @@ class Backoff(
     }
 
     /** Number of delays handed out since the last [reset] (capped); for tests and diagnostics. */
-    @Synchronized
-    fun attempts(): Int = attempt
+    @Synchronized fun attempts(): Int = attempt
 
     private fun baseDelay(n: Int): Long {
         var d = initialMs

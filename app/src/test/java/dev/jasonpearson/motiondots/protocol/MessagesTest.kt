@@ -40,7 +40,12 @@ class MessagesTest {
 
     @Test
     fun motionRoundTrips() {
-        val text = Messages.motion(12345.678, floatArrayOf(0.12f, -0.4f, 0.03f), floatArrayOf(0.1f, 9.7f, 1.2f))
+        val text =
+            Messages.motion(
+                12345.678,
+                floatArrayOf(0.12f, -0.4f, 0.03f),
+                floatArrayOf(0.1f, 9.7f, 1.2f),
+            )
         val o = obj(text)
         assertEquals("motion", o["type"]!!.jsonPrimitive.content)
         assertEquals(12345.678, o["t"]!!.jsonPrimitive.double, 1e-4)
@@ -52,7 +57,8 @@ class MessagesTest {
 
     @Test
     fun motionUsesFixedFourDecimals() {
-        val text = Messages.motion(1.0, floatArrayOf(0f, -0.00004f, 5f), floatArrayOf(0f, 0f, 9.81f))
+        val text =
+            Messages.motion(1.0, floatArrayOf(0f, -0.00004f, 5f), floatArrayOf(0f, 0f, 9.81f))
         assertEquals(
             "{\"type\":\"motion\",\"t\":1.0000,\"a\":[0.0000,0.0000,5.0000],\"g\":[0.0000,0.0000,9.8100]}",
             text,
@@ -74,7 +80,12 @@ class MessagesTest {
 
     @Test
     fun motionHandlesNonFiniteAndNegativeFractions() {
-        val text = Messages.motion(0.0, floatArrayOf(Float.NaN, Float.POSITIVE_INFINITY, -0.05f), floatArrayOf(0f, 0f, 0f))
+        val text =
+            Messages.motion(
+                0.0,
+                floatArrayOf(Float.NaN, Float.POSITIVE_INFINITY, -0.05f),
+                floatArrayOf(0f, 0f, 0f),
+            )
         val a = obj(text)["a"]!!.jsonArray.map { it.jsonPrimitive.double }
         assertEquals(listOf(0.0, 0.0, -0.05), a)
     }
@@ -87,9 +98,15 @@ class MessagesTest {
 
     @Test
     fun parseToleratesUnknownFieldsAndWrongTypes() {
-        val m = Messages.parse("""{"type":"welcome","extra":[1,2],"host":7,"rateHz":"fast","x":{"y":1}}""")
+        val m =
+            Messages.parse(
+                """{"type":"welcome","extra":[1,2],"host":7,"rateHz":"fast","x":{"y":1}}""",
+            )
         assertEquals(Incoming.Welcome(null, null), m)
-        assertEquals(Incoming.Config(30), Messages.parse("""{"type":"config","rateHz":30.0,"z":null}"""))
+        assertEquals(
+            Incoming.Config(30),
+            Messages.parse("""{"type":"config","rateHz":30.0,"z":null}"""),
+        )
         assertEquals(Incoming.Pong(12345.9), Messages.parse("""{"type":"pong","t":12345.9}"""))
     }
 

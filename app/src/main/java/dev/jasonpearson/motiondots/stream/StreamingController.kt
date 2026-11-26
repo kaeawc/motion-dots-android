@@ -7,9 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/**
- * Process-wide state the service publishes and the UI observes. The service is the only writer.
- */
+/** Process-wide state the service publishes and the UI observes. The service is the only writer. */
 object StreamingController {
     private val _streaming = MutableStateFlow(false)
     val streaming: StateFlow<Boolean> = _streaming.asStateFlow()
@@ -37,14 +35,37 @@ object StreamingController {
     /** One-line problem to show in the UI (no Mac found, no sensor...). */
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    fun setStreaming(value: Boolean) { _streaming.value = value }
-    fun setConnection(value: ConnectionState) { _connection.value = value }
-    fun setTarget(value: DiscoveredMac?) { _target.value = value }
-    fun setAchievedHz(value: Float) { _achievedHz.value = value }
-    fun setRequestedHz(value: Int) { _requestedHz.value = value }
-    fun setDropped(value: Long) { _dropped.value = value }
-    fun setLinearAccel(value: FloatArray) { _linearAccel.value = value }
-    fun setMessage(value: String?) { _message.value = value }
+    fun setStreaming(value: Boolean) {
+        _streaming.value = value
+    }
+
+    fun setConnection(value: ConnectionState) {
+        _connection.value = value
+    }
+
+    fun setTarget(value: DiscoveredMac?) {
+        _target.value = value
+    }
+
+    fun setAchievedHz(value: Float) {
+        _achievedHz.value = value
+    }
+
+    fun setRequestedHz(value: Int) {
+        _requestedHz.value = value
+    }
+
+    fun setDropped(value: Long) {
+        _dropped.value = value
+    }
+
+    fun setLinearAccel(value: FloatArray) {
+        _linearAccel.value = value
+    }
+
+    fun setMessage(value: String?) {
+        _message.value = value
+    }
 
     fun resetRuntime() {
         _streaming.value = false
